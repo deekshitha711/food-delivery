@@ -1,28 +1,34 @@
 const express = require('express');
-const router = express.Router();
 const Order = require('../models/Order');
-const auth = require('../middleware/auth'); // middleware to check JWT
+const authMiddleware = require('../middleware/auth');
+const router = express.Router();
 
-// Place an order
-router.post('/', auth, async (req, res) => {
+// ✅ Place a new order
+router.post('/', authMiddleware, async (req, res) => {
   try {
     const { restaurantId, items } = req.body;
+
+    if (!restaurantId || !items || items.length === 0) {
+      return res.status(400).json({ error: "Restaurant and items are required" });
+    }
+
     const order = new Order({
-      user: req.user.id,   // comes from JWT
-      restaurantId,
+      user: req.user.id,
+      restaurant: restaurantId,
       items
     });
+
     await order.save();
-    res.json(order);
+    res.status(201).json({ message: "Order placed successfully", order });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
-// Get all orders for logged-in user
-router.get('/', auth, async (req, res) => {
+// ✅ Get all orders for logged‑in user
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user.id });
+    const orders = await Order.find({ user: req.user.id }).populate('restaurant');
     res.json(orders);
   } catch (err) {
     res.status(400).json({ error: err.message });

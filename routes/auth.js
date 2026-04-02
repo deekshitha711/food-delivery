@@ -8,11 +8,36 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, city } = req.body;
+
+    // ✅ Email validation before saving
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: "Please enter a valid email address" });
+    }
+
+    // ✅ Check if email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "Email already registered" });
+    }
+
+    // ✅ Password validation (optional, but recommended)
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters long" });
+    }
+
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = new User({ name, email, password: hashedPassword, city });
     await user.save();
-    res.json({ message: "User registered successfully" });
+
+    res.status(201).json({ message: "User registered successfully" });
   } catch (err) {
+    // Catch mongoose validation errors
+    if (err.name === "ValidationError") {
+      return res.status(400).json({ error: err.message });
+    }
     res.status(400).json({ error: err.message });
   }
 });
@@ -21,6 +46,7 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: "User not found" });
 
